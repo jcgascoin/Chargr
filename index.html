@@ -1,83 +1,87 @@
-HTML
 <!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Chargr Gold — Stable Version</title>
+<title>Chargr — Planificateur EV</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
+/* RETOUR AU DESIGN V3 ORIGINAL 
+*/
 :root {
-  --bg: #f4f2ff; --card: #ffffff; --text: #1a1440; --muted: #6b5fa0;
-  --accent: #6c47ff; --accent2: #a855f7; --border: rgba(108,71,255,0.14);
-  --green: #10b981; --red: #ef4444;
+  --bg: #f4f2ff; --card: #ffffff; --card2: #f9f8ff; --text: #1a1440;
+  --muted: #6b5fa0; --accent: #6c47ff; --accent2: #a855f7;
+  --border: rgba(108,71,255,0.14); --green: #10b981; --red: #ef4444;
 }
 * { box-sizing: border-box; font-family: 'DM Sans', sans-serif; }
 body { margin: 0; background: var(--bg); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
 
-/* Sidebar */
-#sidebar { width: 400px; background: var(--card); border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 1000; box-shadow: 10px 0 30px rgba(0,0,0,0.05); }
-.header { padding: 20px; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: white; }
-.scroll-area { flex: 1; overflow-y: auto; padding: 20px; }
+#sidebar { width: 420px; background: var(--card); border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 10; box-shadow: 10px 0 30px rgba(0,0,0,0.05); }
+.header { padding: 25px; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: white; }
+.scroll-area { flex: 1; overflow-y: auto; padding: 25px; }
 
-.card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 15px; margin-bottom: 15px; }
-.input-group { margin-bottom: 12px; }
-label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
-input, select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: #f9f8ff; font-size: 14px; outline: none; }
+.card { background: white; border: 1px solid var(--border); border-radius: 20px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(108,71,255,0.04); }
+.input-group { margin-bottom: 15px; }
+label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; letter-spacing: 0.05em; }
+input, select { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--card2); color: var(--text); font-size: 14px; outline: none; transition: 0.2s; }
+input:focus { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(108,71,255,0.1); }
 
-.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-.stat-box { background: #f9f8ff; padding: 10px; border-radius: 10px; border: 1px solid var(--border); }
-.stat-val { font-family: 'DM Mono'; font-weight: 700; color: var(--accent); }
+.btn-plan { width: 100%; padding: 15px; border-radius: 14px; border: none; background: var(--accent); color: white; font-weight: 700; font-size: 15px; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+.btn-plan:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(108,71,255,0.3); }
 
-button { width: 100%; padding: 14px; border-radius: 10px; border: none; background: var(--accent); color: white; font-weight: 700; cursor: pointer; transition: 0.2s; }
-button:hover { background: var(--accent2); }
+#map { flex: 1; background: #e5e7eb; }
 
-/* Table */
-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-td { padding: 10px 5px; border-bottom: 1px solid rgba(0,0,0,0.03); font-size: 12px; }
-.net-badge { padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 800; text-transform: uppercase; background: var(--bg); color: var(--muted); }
+/* Styles des badges pour le tableau */
+.net-badge { padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
 .nb-tesla { background: #e3193715; color: #e31937; }
-
-#map { flex: 1; z-index: 1; }
-.loader { display: none; text-align: center; color: var(--accent); font-weight: 600; padding: 10px; }
+.nb-default { background: var(--bg); color: var(--muted); }
+table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+td { padding: 15px 10px; border-bottom: 1px solid rgba(0,0,0,0.03); font-size: 13px; }
 </style>
 </head>
 <body>
 
 <div id="sidebar">
-  <div class="header"><h1 style="margin:0; font-size:20px;">⚡ Chargr Pro</h1></div>
+  <div class="header">
+    <h1 style="margin:0; font-size:24px; letter-spacing:-0.03em;">⚡ Chargr <span style="font-weight:400;opacity:0.8">v4</span></h1>
+  </div>
   <div class="scroll-area">
+    
     <div class="card">
-      <label>Véhicule</label>
-      <select id="carSelect" onchange="updateCarInfo()"></select>
-      <div id="carInfo" class="stats-grid"></div>
+      <label>Ton Véhicule</label>
+      <select id="carSelect" onchange="onCarChange()"></select>
+      <div id="carInfo" style="display:flex; gap:15px; margin-top:15px;"></div>
     </div>
 
     <div class="card">
-      <div class="input-group"><label>Départ</label><input id="startInp" value="Paris"></div>
-      <div class="input-group"><label>Arrivée</label><input id="endInp" value="Lyon"></div>
+      <div class="input-group"><label>Départ</label><input id="startInp" value="Paris, FR"></div>
+      <div class="input-group"><label>Arrivée</label><input id="endInp" value="Lyon, FR"></div>
       
-      <div class="stats-grid">
-        <div class="stat-box"><label>% Départ</label><input type="number" id="socStart" value="100"></div>
-        <div class="stat-box"><label>% Cible</label><input type="number" id="socTarget" value="15"></div>
-      </div>
-      
-      <div class="stats-grid" style="margin-top:10px;">
-        <div class="stat-box"><label>Vitesse Max</label><select id="vMax"><option value="110">110</option><option value="130" selected>130</option></select></div>
-        <div class="stat-box"><label>Temp (°C)</label><input type="number" id="tempExt" value="15"></div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+        <div class="input-group"><label>% Batterie</label><input type="number" id="socStart" value="100"></div>
+        <div class="input-group"><label>Temp Ext.</label><input type="number" id="tempInp" value="15"></div>
       </div>
 
-      <button onclick="planTrip()" style="margin-top:15px;">Calculer l'itinéraire</button>
-      <div id="loader" class="loader">Analyse en cours...</div>
+      <div class="input-group">
+        <label>Vitesse Max</label>
+        <select id="vMax">
+            <option value="110">110 km/h</option>
+            <option value="130" selected>130 km/h</option>
+            <option value="150">150 km/h</option>
+        </select>
+      </div>
+
+      <button class="btn-plan" onclick="planTrip()">Calculer l'itinéraire</button>
+      <div id="loader" style="display:none; text-align:center; margin-top:15px; color:var(--accent); font-size:13px; font-weight:600;">Analyse topographique...</div>
     </div>
 
-    <div id="summary" class="card" style="display:none; border-left:4px solid var(--accent);">
-      <div id="summaryContent" style="font-size:13px; line-height:1.5;"></div>
+    <div id="summary" class="card" style="display:none; border-left:5px solid var(--accent);">
+        <div id="summaryContent" style="font-size:13px; line-height:1.6;"></div>
     </div>
 
-    <div id="results" style="display:none;">
+    <div id="results">
       <table id="chargerTable"><tbody></tbody></table>
     </div>
   </div>
@@ -86,97 +90,99 @@ td { padding: 10px 5px; border-bottom: 1px solid rgba(0,0,0,0.03); font-size: 12
 <div id="map"></div>
 
 <script>
-// Tes données voitures originales remises à plat
+// Tes données voitures v3
 const CARS = {
-  my_prop: { name:'Tesla Model 3 Prop', cap:60, wltp:491, conso:{110:13.2, 130:17.5, 150:22.0} },
-  m3_lr:   { name:'Tesla Model 3 LR', cap:75, wltp:602, conso:{110:13.8, 130:18.2, 150:23.0} },
-  ev6:     { name:'Kia EV6 77kWh', cap:77, wltp:528, conso:{110:16.5, 130:21.0, 150:26.5} },
-  megane:  { name:'Megane E-Tech', cap:60, wltp:450, conso:{110:15.8, 130:20.5, 150:25.5} }
+  my_prop:  { name:'Tesla Model 3 Prop', capacity:60, wltp:491, conso:{110:13.2, 130:17.5, 150:22.0} },
+  m3_lr:    { name:'Tesla Model 3 LR', capacity:75, wltp:602, conso:{110:13.8, 130:18.2, 150:23.0} },
+  ev6:      { name:'Kia EV6 77kWh', capacity:77, wltp:528, conso:{110:16.5, 130:21.0, 150:26.5} },
+  megane:   { name:'Megane E-Tech', capacity:60, wltp:450, conso:{110:15.8, 130:20.5, 150:25.5} },
+  e208:     { name:'Peugeot e-208', capacity:50, wltp:362, conso:{110:14.5, 130:19.0, 150:24.0} },
+  nio_et7:  { name:'Nio ET7 100kWh', capacity:100, wltp:580, conso:{110:17.0, 130:22.0, 150:27.5} },
+  mokae:    { name:'Mokka-e', capacity:50, wltp:338, conso:{110:15.5, 130:19.5, 150:24.5} },
 };
 
 let map, routeLayer, chargerLayer;
+let currentCar = CARS['my_prop'];
 
-// Initialisation forcée
+// Initialisation au chargement
 window.onload = () => {
     map = L.map('map', { zoomControl: false }).setView([46.5, 2.5], 6);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '©OpenStreetMap'
-    }).addTo(map);
+    // Nouvelle Cartographie Design
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(map);
     chargerLayer = L.layerGroup().addTo(map);
 
     const sel = document.getElementById('carSelect');
     for (let k in CARS) sel.innerHTML += `<option value="${k}">${CARS[k].name}</option>`;
-    updateCarInfo();
+    onCarChange();
     
-    // Correction de la taille de la carte après chargement
-    setTimeout(() => { map.invalidateSize(); }, 500);
+    // Fix pour l'affichage de la carte
+    setTimeout(() => map.invalidateSize(), 400);
 };
 
-function updateCarInfo() {
-  const car = CARS[document.getElementById('carSelect').value];
-  document.getElementById('carInfo').innerHTML = `
-    <div class="stat-box"><label>Batterie</label><div class="stat-val">${car.cap} kWh</div></div>
-    <div class="stat-box"><label>WLTP</label><div class="stat-val">${car.wltp} km</div></div>
-  `;
+function onCarChange() {
+    currentCar = CARS[document.getElementById('carSelect').value];
+    document.getElementById('carInfo').innerHTML = `
+        <div style="flex:1;"><label>Batterie</label><div style="font-weight:700; color:var(--accent);">${currentCar.capacity} kWh</div></div>
+        <div style="flex:1;"><label>WLTP</label><div style="font-weight:700;">${currentCar.wltp} km</div></div>
+    `;
 }
 
 async function planTrip() {
     const loader = document.getElementById('loader');
     loader.style.display = 'block';
-    const car = CARS[document.getElementById('carSelect').value];
-    const vMax = document.getElementById('vMax').value;
-    const temp = parseInt(document.getElementById('tempExt').value);
 
     try {
-        const sVal = document.getElementById('startInp').value;
-        const eVal = document.getElementById('endInp').value;
+        const start = document.getElementById('startInp').value;
+        const end = document.getElementById('endInp').value;
+        const vMax = document.getElementById('vMax').value;
+        const temp = parseInt(document.getElementById('tempInp').value);
 
-        const g1 = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(sVal)}&limit=1`).then(r => r.json());
-        const g2 = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(eVal)}&limit=1`).then(r => r.json());
+        // 1. Géocodage
+        const g1 = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(start)}&limit=1`).then(r => r.json());
+        const g2 = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(end)}&limit=1`).then(r => r.json());
 
+        // 2. Itinéraire
         const rReq = await fetch(`https://router.project-osrm.org/route/v1/driving/${g1[0].lon},${g1[0].lat};${g2[0].lon},${g2[0].lat}?overview=full&geometries=geojson`);
         const rData = await rReq.json();
         const route = rData.routes[0];
         const distKm = route.distance / 1000;
 
-        // Altitude
+        // 3. OPTIMISATION : Altitude
         const coords = route.geometry.coordinates;
-        const step = Math.max(1, Math.floor(coords.length / 15));
-        const sampled = coords.filter((_, i) => i % step === 0).map(c => ({latitude:c[1], longitude:c[0]}));
-        
+        const sampled = coords.filter((_, i) => i % Math.max(1, Math.floor(coords.length / 15)) === 0).map(c => ({latitude:c[1], longitude:c[0]}));
         let dPlus = 0;
         try {
-            const elevRes = await fetch('https://api.open-elevation.com/api/v1/lookup', {
+            const elev = await fetch('https://api.open-elevation.com/api/v1/lookup', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({locations: sampled})
             }).then(r => r.json());
-            for(let i=1; i<elevRes.results.length; i++){
-                let d = elevRes.results[i].elevation - elevRes.results[i-1].elevation;
+            for(let i=1; i<elev.results.length; i++){
+                let d = elev.results[i].elevation - elev.results[i-1].elevation;
                 if(d > 0) dPlus += d;
             }
         } catch(e) { dPlus = 0; }
 
-        // Calcul Consommation (Basé sur tes consos 110/130/150)
-        let baseConso = car.conso[vMax];
-        let tempPenalty = temp < 10 ? 1.2 : 1.0;
-        let elevPenalty = (dPlus / 100) * 0.015;
-        
-        const totalKwh = (distKm * baseConso / 1000) * tempPenalty * (1 + elevPenalty);
-        const socEnd = document.getElementById('socStart').value - (totalKwh / car.cap * 100);
+        // 4. Calcul Conso Réelle
+        let baseConso = currentCar.conso[vMax];
+        let tempPenalty = temp < 10 ? 1.20 : (temp < 20 ? 1.05 : 1.0);
+        let finalKwh = (distKm * baseConso / 100) * tempPenalty + (dPlus / 100 * 0.5);
+        let socEnd = document.getElementById('socStart').value - (finalKwh / currentCar.capacity * 100);
 
-        // Affichage
+        // Mise à jour Carte
         if(routeLayer) map.removeLayer(routeLayer);
-        routeLayer = L.geoJSON(route.geometry, {style:{color:'var(--accent)', weight:5}}).addTo(map);
-        map.fitBounds(routeLayer.getBounds(), {padding:[50,50]});
+        routeLayer = L.geoJSON(route.geometry, {style: {color: 'var(--accent)', weight: 5}}).addTo(map);
+        map.fitBounds(routeLayer.getBounds(), {padding: [50, 50]});
 
+        // Résumé
         document.getElementById('summary').style.display = 'block';
         document.getElementById('summaryContent').innerHTML = `
             <b>Distance :</b> ${Math.round(distKm)} km | <b>Dénivelé :</b> +${Math.round(dPlus)}m<br>
-            <b>Arrivée estimée :</b> <span style="color:${socEnd > 10 ? 'var(--green)' : 'var(--red)'}; font-weight:700">${Math.round(socEnd)}%</span>
+            <b>Batterie à l'arrivée :</b> <span style="color:${socEnd > 10 ? 'var(--green)' : 'var(--red)'}; font-weight:700;">${Math.round(socEnd)}%</span>
         `;
+
         fetchChargers(coords);
 
-    } catch (e) { alert("Vérifiez les noms de villes."); }
+    } catch(e) { alert("Erreur de calcul."); }
     finally { loader.style.display = 'none'; }
 }
 
@@ -187,24 +193,23 @@ async function fetchChargers(coords) {
     let q = `[out:json];(`;
     pts.forEach(p => q += `node["amenity"="charging_station"]["maxpower"~"^(1|2|3)"](around:15000,${p[1]},${p[0]});`);
     q += `);out;`;
-    
+
     const data = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(q)}`).then(r => r.json());
     const tbody = document.querySelector('#chargerTable tbody');
     tbody.innerHTML = '';
-    document.getElementById('results').style.display = 'block';
 
     data.elements.sort((a,b) => (b.tags.maxpower||0) - (a.tags.maxpower||0)).slice(0,8).forEach(el => {
         const net = el.tags.operator || 'Réseau';
         const isTesla = net.toLowerCase().includes('tesla');
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td><b>${(el.tags.name || 'Station').substring(0,20)}</b><br><span class="net-badge ${isTesla?'nb-tesla':''}">${net.substring(0,15)}</span></td>
-            <td style="color:var(--accent);font-weight:700">${el.tags.maxpower||'?'}kW</td>
-            <td onclick="window.open('https://www.google.com/maps/search/?api=1&query=${el.lat},${el.lon}')">📍</td>
+            <td><b>${(el.tags.name || 'Station').substring(0,22)}</b><br><span class="net-badge ${isTesla?'nb-tesla':'nb-default'}">${net.substring(0,12)}</span></td>
+            <td style="color:var(--accent); font-weight:700;">${el.tags.maxpower || '?'}kW</td>
+            <td style="cursor:pointer;" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${el.lat},${el.lon}')">📍</td>
         `;
         tr.onclick = () => map.setView([el.lat, el.lon], 14);
         tbody.appendChild(tr);
-        L.circleMarker([el.lat, el.lon], {radius:6, color:isTesla?'#e31937':'var(--accent)', fillOpacity:0.8}).addTo(chargerLayer);
+        L.circleMarker([el.lat, el.lon], {radius: 6, color: isTesla ? '#e31937' : 'var(--accent)', fillOpacity: 0.8}).addTo(chargerLayer);
     });
 }
 </script>
