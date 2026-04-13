@@ -3,100 +3,146 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Chargr Ultimate — EV Planner</title>
+<title>Chargr Gold — Planificateur EV</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --muted: #94a3b8;
-  --accent: #38bdf8; --accent2: #818cf8; --border: rgba(255,255,255,0.1);
-  --green: #22c55e; --red: #ef4444; --amber: #f59e0b;
+  --bg: #f4f2ff; --card: #ffffff; --text: #1a1440; --muted: #6b5fa0;
+  --accent: #6c47ff; --accent2: #a855f7; --border: rgba(108,71,255,0.14);
+  --green: #10b981; --red: #ef4444; --amber: #f59e0b; --blue: #3b82f6;
 }
 * { box-sizing: border-box; font-family: 'DM Sans', sans-serif; }
 body { margin: 0; background: var(--bg); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
 
-/* Sidebar */
-#sidebar { width: 400px; background: var(--card); border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 10; box-shadow: 20px 0 50px rgba(0,0,0,0.3); }
-.header { padding: 20px; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: white; }
-.header h1 { margin: 0; font-size: 22px; letter-spacing: -0.5px; }
+#sidebar { width: 420px; background: var(--card); border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 10; box-shadow: 10px 0 30px rgba(0,0,0,0.05); }
+.header { padding: 25px; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: white; }
+.header h1 { margin: 0; font-size: 24px; letter-spacing: -1px; }
 .scroll-area { flex: 1; overflow-y: auto; padding: 20px; }
 
-.card { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 15px; }
-.input-group { margin-bottom: 12px; }
-label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
-input, select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: #0f172a; color: white; font-size: 14px; }
+.card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 20px; }
+.input-group { margin-bottom: 15px; position: relative; }
+label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+input, select { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--border); background: #f9f8ff; color: var(--text); font-size: 14px; outline: none; }
 
-.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-.stat-box { background: #0f172a; padding: 10px; border-radius: 8px; border: 1px solid var(--border); }
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+.stat-box { background: #f9f8ff; padding: 12px; border-radius: 12px; border: 1px solid var(--border); }
 .stat-val { font-family: 'DM Mono'; font-weight: 700; color: var(--accent); font-size: 16px; }
 
-button { width: 100%; padding: 14px; border-radius: 10px; border: none; background: var(--accent); color: #0f172a; font-weight: 800; cursor: pointer; margin-top: 10px; }
-button:hover { filter: brightness(1.1); }
+button { width: 100%; padding: 15px; border-radius: 12px; border: none; background: var(--accent); color: white; font-weight: 700; cursor: pointer; transition: 0.2s; }
+button:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(108,71,255,0.3); }
 
-/* Results */
-.charger-item { padding: 12px; border-bottom: 1px solid var(--border); cursor: pointer; transition: 0.2s; display: flex; justify-content: space-between; align-items: center; }
-.charger-item:hover { background: rgba(255,255,255,0.05); }
-.net-badge { font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 800; background: var(--accent); color: #0f172a; }
+.net-badge { padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+.nb-tesla { background: #e3193715; color: #e31937; }
+.nb-ionity { background: #004dff15; color: #004dff; }
+.nb-default { background: var(--bg); color: var(--muted); }
 
-#map { flex: 1; background: #0f172a; }
-.loader { display: none; color: var(--accent); text-align: center; margin-top: 10px; font-size: 12px; }
+table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+td { padding: 12px 8px; border-bottom: 1px solid rgba(0,0,0,0.03); font-size: 13px; }
+
+#map { flex: 1; }
+.loader { display: none; text-align: center; color: var(--accent); font-weight: 600; font-size: 13px; margin-top: 10px; }
 </style>
 </head>
 <body>
 
 <div id="sidebar">
-  <div class="header"><h1>⚡ Chargr Ultimate</h1></div>
+  <div class="header"><h1>⚡ Chargr Gold</h1></div>
   <div class="scroll-area">
     
     <div class="card">
-      <label>Véhicule & Conditions</label>
-      <select id="carSelect" onchange="updateUI()"></select>
-      <div class="stats-grid">
-        <div class="stat-box"><label>Temp Ext.</label><input type="number" id="tempExt" value="12" onchange="updateUI()"></div>
-        <div class="stat-box"><label>Vitesse Max</label><select id="vMax"><option value="110">110 km/h</option><option value="130" selected>130 km/h</option></select></div>
-      </div>
+      <label>Véhicule</label>
+      <select id="carSelect" onchange="onCarChange()"></select>
+      <div id="carInfo" class="stats-grid"></div>
     </div>
 
     <div class="card">
-      <div class="input-group"><label>Départ</label><input id="startInp" value="Paris"></div>
-      <div class="input-group"><label>Arrivée</label><input id="endInp" value="Lyon"></div>
+      <div class="input-group">
+        <label>Départ</label>
+        <input id="startInp" list="startSuggestions" placeholder="Ville de départ..." oninput="fetchSuggestions(this, 'startSuggestions')">
+        <datalist id="startSuggestions"></datalist>
+      </div>
+      
+      <div class="input-group">
+        <label>Arrivée</label>
+        <input id="endInp" list="endSuggestions" placeholder="Destination..." oninput="fetchSuggestions(this, 'endSuggestions')">
+        <datalist id="endSuggestions"></datalist>
+      </div>
+      
       <div class="stats-grid">
         <div class="stat-box"><label>% Départ</label><input type="number" id="socStart" value="100"></div>
         <div class="stat-box"><label>% Cible</label><input type="number" id="socTarget" value="15"></div>
       </div>
-      <button onclick="planTrip()">Calculer l'Odyssée</button>
-      <div id="loader" class="loader">Analyse topographique & météo en cours...</div>
+
+      <div class="stats-grid" style="margin-top:10px;">
+         <div class="stat-box"><label>Vitesse Max</label><select id="vMax"><option value="110">110 km/h</option><option value="130" selected>130 km/h</option></select></div>
+         <div class="stat-box"><label>Temp. Ext (°C)</label><input type="number" id="tempExt" value="15"></div>
+      </div>
+
+      <button onclick="planTrip()" style="margin-top:20px;">Tracer l'itinéraire</button>
+      <div id="loader" class="loader">Analyse du relief et météo...</div>
     </div>
 
-    <div id="summary" class="card" style="display:none; border-left: 4px solid var(--accent);">
-        <label>Résumé du voyage</label>
-        <div id="summaryContent" style="font-size: 13px; line-height: 1.6;"></div>
+    <div id="summary" class="card" style="display:none; border-left: 5px solid var(--accent); background: #f9f8ff;">
+        <label>Analyse du trajet</label>
+        <div id="summaryContent" style="font-size: 13px; line-height: 1.6; margin-top:10px;"></div>
     </div>
 
-    <div id="results"></div>
+    <div id="results" style="display:none;">
+      <h3 style="font-size:16px; margin-bottom:10px;">Bornes recommandées</h3>
+      <table id="chargerTable"><tbody></tbody></table>
+    </div>
   </div>
 </div>
 
 <div id="map"></div>
 
 <script>
+// Réintégration de tes données véhicules complètes
 const CARS = {
-  m3p: { name:'Tesla Model 3 Prop', cap:60, conso:145, curve:250 },
-  m3lr: { name:'Tesla Model 3 LR', cap:75, conso:155, curve:250 },
-  ev6: { name:'Kia EV6 77kWh', cap:77, conso:185, curve:235 },
-  id3: { name:'VW ID.3 58kWh', cap:58, conso:170, curve:120 }
+  my_prop: { name:'Tesla Model 3 Prop', brand:'Tesla', capacity:60, wltp:491, conso:140 },
+  m3_lr:   { name:'Tesla Model 3 LR', brand:'Tesla', capacity:75, wltp:602, conso:150 },
+  ev6:     { name:'Kia EV6 77kWh', brand:'Kia', capacity:77, wltp:528, conso:185 },
+  megane:  { name:'Megane E-Tech', brand:'Renault', capacity:60, wltp:450, conso:165 },
+  e208:    { name:'Peugeot e-208', brand:'Peugeot', capacity:50, wltp:362, conso:155 }
 };
 
-let map, routeLayer, chargerMarkers = [];
+let map, routeLayer, chargerLayer;
 
-// Init Map
-map = L.map('map', { zoomControl: false }).setView([46.5, 2.5], 6);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+window.onload = () => {
+  map = L.map('map', { zoomControl: false }).setView([46.5, 2.5], 6);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(map);
+  chargerLayer = L.layerGroup().addTo(map);
 
-// Populate Cars
-const sel = document.getElementById('carSelect');
-for (let k in CARS) sel.innerHTML += `<option value="${k}">${CARS[k].name}</option>`;
+  const sel = document.getElementById('carSelect');
+  for (let k in CARS) sel.innerHTML += `<option value="${k}">${CARS[k].name}</option>`;
+  onCarChange();
+};
+
+// FONCTION REMPLISSAGE AUTO (Nouveau)
+async function fetchSuggestions(input, listId) {
+  if (input.value.length < 3) return;
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${input.value}&countrycodes=fr&limit=5`);
+    const data = await res.json();
+    const list = document.getElementById(listId);
+    list.innerHTML = '';
+    data.forEach(item => {
+      const opt = document.createElement('option');
+      opt.value = item.display_name;
+      list.appendChild(opt);
+    });
+  } catch(e) {}
+}
+
+function onCarChange() {
+  const car = CARS[document.getElementById('carSelect').value];
+  document.getElementById('carInfo').innerHTML = `
+    <div class="stat-box"><label>Batterie</label><div class="stat-val">${car.capacity} kWh</div></div>
+    <div class="stat-box"><label>WLTP</label><div class="stat-val">${car.wltp} km</div></div>
+  `;
+}
 
 async function planTrip() {
     const loader = document.getElementById('loader');
@@ -104,24 +150,23 @@ async function planTrip() {
     
     try {
         const car = CARS[document.getElementById('carSelect').value];
-        const start = document.getElementById('startInp').value;
-        const end = document.getElementById('endInp').value;
+        const sVal = document.getElementById('startInp').value;
+        const eVal = document.getElementById('endInp').value;
         const temp = parseInt(document.getElementById('tempExt').value);
         const vMax = parseInt(document.getElementById('vMax').value);
 
-        // 1. Geocoding
-        const g1 = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${start}`).then(r => r.json());
-        const g2 = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${end}`).then(r => r.json());
+        const g1 = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(sVal)}&limit=1`).then(r => r.json());
+        const g2 = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(eVal)}&limit=1`).then(r => r.json());
 
-        // 2. Route
         const rReq = await fetch(`https://router.project-osrm.org/route/v1/driving/${g1[0].lon},${g1[0].lat};${g2[0].lon},${g2[0].lat}?overview=full&geometries=geojson`);
         const rData = await rReq.json();
         const route = rData.routes[0];
         const distKm = route.distance / 1000;
 
-        // 3. Altitude (Open-Elevation)
+        // Calcul Altitude
         const coords = route.geometry.coordinates;
-        const sampled = coords.filter((_, i) => i % Math.floor(coords.length/15) === 0).map(c => ({latitude:c[1], longitude:c[0]}));
+        const step = Math.max(1, Math.floor(coords.length / 20));
+        const sampled = coords.filter((_, i) => i % step === 0).map(c => ({latitude:c[1], longitude:c[0]}));
         const elevRes = await fetch('https://api.open-elevation.com/api/v1/lookup', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({locations: sampled})
@@ -129,77 +174,76 @@ async function planTrip() {
 
         let dPlus = 0;
         for(let i=1; i<elevRes.results.length; i++){
-            let diff = elevRes.results[i].elevation - elevRes.results[i-1].elevation;
-            if(diff > 0) dPlus += diff;
+            let d = elevRes.results[i].elevation - elevRes.results[i-1].elevation;
+            if(d > 0) dPlus += d;
         }
 
-        // 4. Calcul Consommation Complexe
-        // Base + Malus Vitesse + Malus Froid (Chimie) + Malus Altitude
-        let speedMulti = vMax === 130 ? 1.25 : 1.0;
-        let tempMulti = temp < 10 ? 1.20 : (temp < 20 ? 1.05 : 1.0);
-        let elevPenalty = (dPlus / 100) * 0.01; // 1% par 100m
+        // Physique
+        const speedFactor = vMax === 130 ? 1.25 : 1.0;
+        const tempFactor = temp < 10 ? 1.20 : (temp < 20 ? 1.05 : 1.0);
+        const elevPenalty = (dPlus / 100) * 0.015;
         
-        let finalConso = (car.conso * speedMulti * tempMulti) * (1 + elevPenalty);
-        let totalNeededKwh = (distKm * finalConso) / 1000;
-        let stopsNeeded = Math.ceil(totalNeededKwh / (car.cap * 0.7)); // On compte des relais de 70% de batterie
+        const realConso = (car.conso * speedFactor * tempFactor) * (1 + elevPenalty);
+        const kwhTotal = (distKm * realConso) / 1000;
+        const socEnd = document.getElementById('socStart').value - (kwhTotal / car.capacity * 100);
 
-        // UI Update
-        showRoute(route);
-        updateSummary(distKm, dPlus, totalNeededKwh, stopsNeeded);
-        fetchChargersAlong(coords);
+        updateSummary(distKm, dPlus, kwhTotal, socEnd);
+        drawRoute(route);
+        fetchChargers(coords);
 
-    } catch (err) {
-        alert("Erreur de calcul. Vérifiez les noms de villes.");
+    } catch (e) {
+        alert("Erreur. Vérifiez les adresses.");
     } finally {
         loader.style.display = 'none';
     }
 }
 
-function updateSummary(dist, dplus, kwh, stops) {
-    const s = document.getElementById('summary');
-    s.style.display = 'block';
+function updateSummary(dist, dplus, kwh, socEnd) {
+    const sum = document.getElementById('summary');
+    sum.style.display = 'block';
+    const target = document.getElementById('socTarget').value;
+    const isSafe = socEnd > target;
+    
     document.getElementById('summaryContent').innerHTML = `
-        🚗 <b>Distance :</b> ${Math.round(dist)} km<br>
-        ⛰️ <b>Dénivelé + :</b> ${Math.round(dplus)} m<br>
-        🔋 <b>Énergie estimée :</b> ${Math.round(kwh)} kWh<br>
-        🔌 <b>Arrêts suggérés :</b> ${stops > 1 ? stops : 'Direct !'}
+        🚗 <b>Distance :</b> ${Math.round(dist)} km | ⛰️ <b>Dénivelé :</b> +${Math.round(dplus)}m<br>
+        🔋 <b>Énergie :</b> ${kwh.toFixed(1)} kWh consommé<br>
+        🏁 <b>Arrivée :</b> <span style="color:${isSafe ? 'var(--green)' : 'var(--red)'}; font-weight:bold">${Math.round(socEnd)}%</span>
+        ${!isSafe ? `<br><b style="color:var(--red)">⚠️ Prévoir un arrêt !</b> (Manque ${(target - socEnd).toFixed(0)}%)` : ''}
     `;
 }
 
-async function fetchChargersAlong(coords) {
-    const step = Math.floor(coords.length / 6);
-    const points = coords.filter((_, i) => i % step === 0);
-    const resDiv = document.getElementById('results');
-    resDiv.innerHTML = '<label style="margin-top:20px; display:block">Bornes stratégiques</label>';
-    
-    let q = `[out:json];(`;
-    points.forEach(p => q += `node["amenity"="charging_station"]["maxpower"~"^(1|2|3)"](around:15000,${p[1]},${p[0]});`);
-    q += `);out;`;
+async function fetchChargers(coords) {
+    chargerLayer.clearLayers();
+    const step = Math.floor(coords.length / 8);
+    const pts = coords.filter((_, i) => i % step === 0);
+    let query = `[out:json];(`;
+    pts.forEach(p => query += `node["amenity"="charging_station"]["maxpower"~"^(1|2|3)"](around:15000,${p[1]},${p[0]});`);
+    query += `);out;`;
 
-    const data = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(q)}`).then(r => r.json());
-    
+    const data = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`).then(r => r.json());
+    const tbody = document.querySelector('#chargerTable tbody');
+    tbody.innerHTML = '';
+    document.getElementById('results').style.display = 'block';
+
     data.elements.sort((a,b) => (b.tags.maxpower||0) - (a.tags.maxpower||0)).slice(0,10).forEach(el => {
-        const tr = document.createElement('div');
-        tr.className = 'charger-item';
+        const net = el.tags.operator || 'Réseau';
+        const cls = net.toLowerCase().includes('tesla') ? 'nb-tesla' : (net.toLowerCase().includes('ionity') ? 'nb-ionity' : 'nb-default');
+        const tr = document.createElement('tr');
         tr.innerHTML = `
-            <div>
-                <div style="font-weight:700; font-size:13px;">${(el.tags.name || 'Station').substring(0,25)}</div>
-                <div class="net-badge">${el.tags.operator || 'Réseau'}</div>
-            </div>
-            <div style="text-align:right">
-                <div style="color:var(--accent); font-weight:700">${el.tags.maxpower || '150'}kW</div>
-                <a href="https://www.google.com/maps/search/?api=1&query=${el.lat},${el.lon}" target="_blank" style="text-decoration:none">📍</a>
-            </div>
+            <td><b>${(el.tags.name || 'Station').substring(0,25)}</b><br><span class="net-badge ${cls}">${net.substring(0,15)}</span></td>
+            <td style="font-family:'DM Mono'; font-weight:700; color:var(--accent)">${el.tags.maxpower || '?'}kW</td>
+            <td><a href="https://www.google.com/maps/search/?api=1&query=${el.lat},${el.lon}" target="_blank" style="text-decoration:none">📍</a></td>
         `;
-        tr.onclick = () => map.setView([el.lat, el.lon], 14);
-        resDiv.appendChild(tr);
+        tr.onclick = () => map.setView([el.lat, el.lon], 15);
+        tbody.appendChild(tr);
+        L.circleMarker([el.lat, el.lon], { radius: 6, color: 'var(--accent)', fillOpacity: 0.8 }).addTo(chargerLayer);
     });
 }
 
-function showRoute(route) {
+function drawRoute(route) {
     if(routeLayer) map.removeLayer(routeLayer);
-    routeLayer = L.geoJSON(route.geometry, {style:{color:'#38bdf8', weight:5, opacity:0.7}}).addTo(map);
-    map.fitBounds(routeLayer.getBounds(), {padding:[40,40]});
+    routeLayer = L.geoJSON(route.geometry, {style:{color:'var(--accent)', weight:5, opacity:0.8}}).addTo(map);
+    map.fitBounds(routeLayer.getBounds(), {padding:[50,50]});
 }
 </script>
 </body>
