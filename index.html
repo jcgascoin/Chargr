@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Chargr — Planificateur EV</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f4f2ff;
+  --card: #ffffff;
+  --card2: #f9f8ff;
+  --text: #1a1440;
+  --muted: #6b5fa0;
+  --hint: #9e99c0;
+  --accent: #6c47ff;
+  --accent2: #a855f7;
+  --pink: #f472b6;
+  --amber: #f59e0b;
+  --green: #10b981;
+  --red: #ef4444;
+  --blue: #3b82f6;
+  --border: rgba(108,71,255,0.14);
+  --border2: rgba(108,71,255,0.08);
+  --radius: 16px;
+  --radius-sm: 10px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+
+/* HEADER */
+.header {
+  background: linear-gradient(135deg, #ffffff 0%, #f4f2ff 100%);
+  border-bottom: 1px solid var(--border); box-shadow: 0 1px 20px rgba(108,71,255,0.08);
+  padding: 0 2rem;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  position: sticky; top: 0; z-index: 1000;
+}
+.header-logo { display: flex; align-items: center; gap: 10px; }
+.t-mark { width: 24px; height: 24px; }
+.header-title {
+  font-size: 18px; font-weight: 700; letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #6c47ff, #f472b6, #f59e0b);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.header-sub { font-size: 12px; color: var(--muted); margin-left: auto; font-family: 'DM Mono'; }
+
+/* LAYOUT */
+.main { display: grid; grid-template-columns: 400px 1fr; min-height: calc(100vh - 60px); }
+@media (max-width: 860px) { .main { grid-template-columns: 1fr; } }
+
+/* SIDEBAR */
+.sidebar { background: var(--card2); border-right: 1px solid var(--border); overflow-y: auto; max-height: calc(100vh - 60px); padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; }
+
+/* CARDS */
+.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; }
+.card-label { font-size: 10px; font-weight: 800; color: var(--hint); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 1rem; }
+
+/* AUTOCOMPLETE FIELD */
+.ac-wrap { position: relative; margin-bottom: 10px; }
+.ac-wrap label { display: block; font-size: 11px; color: var(--muted); font-weight: 700; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.05em; }
+.ac-wrap input {
+  width: 100%; padding: 10px 14px;
+  background: rgba(108,71,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text); font-size: 14px; font-family: 'DM Sans';
+  outline: none; transition: border-color .2s, background .2s;
+}
+.ac-wrap input:focus { border-color: var(--accent); background: rgba(108,71,255,0.08); }
+.ac-dropdown {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  background: #ffffff; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  z-index: 999; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  display: none;
+}
+.ac-item { padding: 10px 14px; font-size: 13px; color: var(--muted); cursor: pointer; transition: background .15s; border-bottom: 1px solid rgba(108,71,255,0.07); }
+.ac-item:last-child { border-bottom: none; }
+.ac-item:hover, .ac-item.highlighted { background: rgba(108,71,255,0.15); color: var(--text); }
+.ac-item strong { color: var(--text); font-weight: 600; }
+
+/* ROW 2 */
+.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.field label { display: block; font-size: 11px; color: var(--muted); font-weight: 700; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.05em; }
+.field input, .field select {
+  width: 100%; padding: 10px 14px;
+  background: rgba(108,71,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text); font-size: 14px; font-family: 'DM Sans';
+  outline: none; transition: border-color .2s;
+}
+.field input:focus, .field select:focus { border-color: var(--accent); }
+.field select option { background: #ffffff; }
+.batt-wrap { position: relative; }
+.batt-suffix { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-family: 'DM Mono'; font-size: 13px; color: var(--muted); pointer-events: none; }
+
+/* BTN */
+.btn {
+  width: 100%; padding: 13px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff; border: none; border-radius: var(--radius-sm);
+  font-size: 15px; font-weight: 700; cursor: pointer; font-family: 'DM Sans';
+  box-shadow: 0 4px 20px rgba(108,71,255,0.35);
+  transition: opacity .2s, transform .1s;
+}
+.btn:hover { opacity: 0.9; }
+.btn:active { transform: scale(0.99); }
+.btn:disabled { opacity: 0.4; cursor: default; }
+
+/* ERROR */
+.error-msg { font-size: 12px; color: var(--red); margin-top: 6px; display: none; }
+
+/* METRICS */
+.metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.metric { background: rgba(108,71,255,0.05); border-radius: var(--radius-sm); padding: 12px 14px; border: 1px solid var(--border); }
+.metric .m-label { font-size: 10px; color: var(--hint); font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 4px; }
+.metric .m-val { font-size: 22px; font-weight: 700; font-family: 'DM Mono'; line-height: 1; }
+.metric .m-sub { font-size: 11px; color: var(--hint); margin-top: 3px; }
+
+/* BATTERY BAR */
+.batt-row { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.batt-track { flex: 1; height: 6px; background: rgba(108,71,255,0.1); border-radius: 3px; overflow: hidden; }
+.batt-fill { height: 100%; border-radius: 3px; transition: width .5s, background .5s; }
+.batt-pct { font-size: 13px; font-weight: 700; font-family: 'DM Mono'; min-width: 36px; text-align: right; }
+
+/* SLIDER */
+.slider-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+.slider-title { font-size: 13px; color: var(--muted); }
+.slider-val { font-size: 28px; font-weight: 700; font-family: 'DM Mono'; color: var(--amber); line-height: 1; }
+input[type=range] {
+  width: 100%; cursor: pointer;
+  -webkit-appearance: none; height: 4px;
+  background: linear-gradient(to right, var(--accent) 0%, var(--accent) var(--pct, 30%), rgba(108,71,255,0.12) var(--pct, 30%), rgba(108,71,255,0.12) 100%);
+  border-radius: 2px; outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 18px; height: 18px;
+  border-radius: 50%; background: var(--accent);
+  box-shadow: 0 0 12px rgba(108,71,255,0.6); cursor: pointer;
+}
+.risk-tag { display: inline-block; margin-top: 8px; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 20px; }
+.risk-danger { background: rgba(239,68,68,0.15); color: #ff6b6b; }
+.risk-warn { background: rgba(245,158,11,0.15); color: var(--amber); }
+.risk-ok { background: rgba(16,185,129,0.15); color: var(--green); }
+.risk-safe { background: rgba(59,130,246,0.15); color: var(--blue); }
+
+/* TABS */
+.tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+.tab { flex: 1; padding: 8px 4px; font-size: 12px; font-weight: 700; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; background: transparent; color: var(--hint); transition: all .15s; font-family: 'DM Sans'; text-align: center; }
+.tab.active { background: rgba(108,71,255,0.2); color: var(--text); border-color: var(--accent); }
+
+/* STOP LIST */
+.stop-list { display: flex; flex-direction: column; }
+.stop-connector { width: 2px; height: 12px; background: var(--border); margin: 0 0 0 17px; }
+.stop-item { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.stop-item:last-child { border-bottom: none; }
+.stop-dot { width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 800; margin-top: 2px; }
+.dot-origin { background: rgba(255,255,255,0.1); color: var(--muted); border: 1px solid var(--border); }
+.dot-tesla { background: rgba(239,68,68,0.2); color: #ff6b6b; border: 1px solid rgba(239,68,68,0.3); }
+.dot-third { background: rgba(59,130,246,0.2); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+.dot-arrival { background: rgba(16,185,129,0.2); color: var(--green); border: 1px solid rgba(16,185,129,0.3); }
+.stop-body { flex: 1; min-width: 0; }
+.stop-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+.stop-detail { font-size: 11px; color: var(--hint); margin-top: 2px; line-height: 1.5; }
+.stop-charge { font-size: 11px; color: #60a5fa; margin-top: 2px; }
+.stop-right { text-align: right; flex-shrink: 0; }
+.batt-badge { display: inline-block; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 20px; font-family: 'DM Mono'; }
+.bb-ok { background: rgba(16,185,129,0.15); color: var(--green); }
+.bb-warn { background: rgba(245,158,11,0.15); color: var(--amber); }
+.bb-danger { background: rgba(239,68,68,0.15); color: #ff6b6b; }
+.stop-network { font-size: 10px; color: var(--hint); margin-top: 3px; }
+
+/* STATUS */
+.status-msg { font-size: 12px; color: var(--muted); padding: 8px 0; font-style: italic; }
+.loader { display: none; font-size: 13px; color: var(--muted); padding: 4px 0; }
+.loader.active { display: block; }
+.spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid rgba(108,71,255,0.3); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 6px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* EMPTY */
+.empty { text-align: center; padding: 1.5rem; color: var(--hint); font-size: 13px; line-height: 1.7; }
+
+/* MAP SIDE */
+.map-right { display: flex; flex-direction: column; overflow: hidden; }
+#map { flex: 1; min-height: 420px; background: #0e0c1e; }
+.map-placeholder { flex: 1; min-height: 420px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--hint); font-size: 14px; background: #f0eeff; }
+.map-placeholder svg { opacity: 0.2; }
+
+/* LEGEND */
+.map-legend { display: flex; gap: 16px; padding: 10px 16px; background: var(--card2); border-top: 1px solid var(--border); flex-wrap: wrap; }
+.leg-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); font-weight: 600; }
+.leg-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+/* CHARGER TABLE */
+.charger-section { background: var(--card2); border-top: 1px solid var(--border); max-height: 320px; overflow-y: auto; }
+.charger-header { padding: 10px 16px; font-size: 10px; font-weight: 800; color: var(--hint); letter-spacing: .1em; text-transform: uppercase; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--card2); z-index: 2; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
+.charger-count { font-size: 12px; font-weight: 700; color: var(--accent); background: rgba(108,71,255,0.15); padding: 2px 10px; border-radius: 10px; font-family: 'DM Mono'; }
+.charger-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.charger-table th { text-align: left; padding: 8px 16px; color: var(--hint); font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: .07em; border-bottom: 1px solid var(--border2); position: sticky; top: 37px; background: var(--card2); z-index: 1; color: var(--muted); }
+.charger-table td { padding: 9px 16px; border-bottom: 1px solid var(--border2); vertical-align: middle; color: var(--muted); }
+.charger-table tr:last-child td { border-bottom: none; }
+.charger-table tr:hover td { background: rgba(108,71,255,0.05); cursor: pointer; }
+.net-badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 8px; }
+.nb-tesla { background: rgba(239,68,68,0.15); color: #ff6b6b; }
+.nb-ionity { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.nb-fastned { background: rgba(245,158,11,0.15); color: var(--amber); }
+.nb-total { background: rgba(16,185,129,0.15); color: var(--green); }
+.nb-default { background: rgba(255,255,255,0.06); color: var(--muted); }
+.pw-bar-wrap { width: 50px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; display: inline-block; vertical-align: middle; margin-left: 6px; }
+.pw-bar { height: 100%; border-radius: 2px; background: var(--accent); }
+.price-val { font-family: 'DM Mono'; color: var(--text); font-weight: 500; }
+.price-na { color: var(--hint); font-style: italic; }
+
+/* LEAFLET dark overrides */
+
+.leaflet-popup-content-wrapper { background: #ffffff; color: var(--text); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+.leaflet-popup-tip { background: #ffffff; }
+.leaflet-popup-content { font-family: 'DM Sans'; font-size: 13px; margin: 10px 14px; }
+.popup-name { font-weight: 700; margin-bottom: 4px; color: var(--text); }
+.popup-detail { color: var(--muted); font-size: 12px; line-height: 1.6; }
+.popup-kw { color: var(--accent); font-weight: 700; font-family: 'DM Mono'; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-logo">
+    <svg class="t-mark" viewBox="0 0 342 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0 68.4L171 512 342 68.4C298.7 94.7 240.2 109 171 109 101.8 109 43.3 94.7 0 68.4Z" fill="url(#tg)"/>
+      <path d="M171 0L0 50.4C46.3 89.3 107.1 113 171 113c63.9 0 124.7-23.7 171-62.6L171 0Z" fill="url(#tg)"/>
+      <defs><linearGradient id="tg" x1="0" y1="0" x2="342" y2="512" gradientUnits="userSpaceOnUse"><stop stop-color="#6c47ff"/><stop offset="1" stop-color="#f472b6"/></linearGradient></defs>
+    </svg>
+    <span class="header-title">Chargr</span>
+  </div>
+  <span class="header-sub" id="header-sub-text">Tesla Model Y Propulsion · 57,5 kWh</span>
+</div>
+
+<div class="main">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+
+
+    <div class="card" id="carCard">
+      <div class="card-label">Votre véhicule</div>
+      <div class="field">
+        <select id="carSelect" onchange="onCarChange()">
+          <optgroup label="Tesla">
+            <option value="my_prop">Tesla Model Y Propulsion (57,5 kWh)</option>
+            <option value="my_lr">Tesla Model Y Grande Autonomie (82 kWh)</option>
+            <option value="m3_prop">Tesla Model 3 Propulsion (60 kWh)</option>
+            <option value="m3_lr">Tesla Model 3 Grande Autonomie (82 kWh)</option>
+            <option value="ms">Tesla Model S (100 kWh)</option>
+            <option value="mx">Tesla Model X (100 kWh)</option>
+          </optgroup>
+          <optgroup label="Volkswagen">
+            <option value="id3">Volkswagen ID.3 Pro (77 kWh)</option>
+            <option value="id4">Volkswagen ID.4 Pro (77 kWh)</option>
+          </optgroup>
+          <optgroup label="Renault">
+            <option value="r5">Renault 5 E-Tech (52 kWh)</option>
+            <option value="zoe">Renault Zoé R135 (54,7 kWh)</option>
+          </optgroup>
+          <optgroup label="Peugeot / Stellantis">
+            <option value="e208">Peugeot e-208 (51 kWh)</option>
+          </optgroup>
+          <optgroup label="Hyundai / Kia">
+            <option value="ioniq6">Hyundai Ioniq 6 (77,4 kWh)</option>
+            <option value="ev6">Kia EV6 GT-Line (77,4 kWh)</option>
+          </optgroup>
+          <optgroup label="BMW">
+            <option value="bmwi4">BMW i4 eDrive40 (83,9 kWh)</option>
+          </optgroup>
+          <optgroup label="Volvo">
+            <option value="ex30">Volvo EX30 (69 kWh)</option>
+          </optgroup>
+          <optgroup label="BYD">
+            <option value="byd_atto3">BYD Atto 3 (60,5 kWh)</option>
+            <option value="byd_seal">BYD Seal (82,5 kWh)</option>
+            <option value="byd_dolphin">BYD Dolphin (60,4 kWh)</option>
+            <option value="byd_han">BYD Han (85,4 kWh)</option>
+            <option value="byd_tang">BYD Tang (108,8 kWh)</option>
+          </optgroup>
+          <optgroup label="Audi">
+            <option value="etron_gt">Audi e-tron GT (93,4 kWh)</option>
+            <option value="q4etron">Audi Q4 e-tron (82 kWh)</option>
+          </optgroup>
+          <optgroup label="Mercedes">
+            <option value="eqb">Mercedes EQB 300 (70,5 kWh)</option>
+            <option value="eqa">Mercedes EQA 250 (70,5 kWh)</option>
+          </optgroup>
+          <optgroup label="Citroën / DS">
+            <option value="ec4">Citroën ë-C4 (54 kWh)</option>
+            <option value="ds3etense">DS 3 E-Tense (54 kWh)</option>
+          </optgroup>
+          <optgroup label="Fiat">
+            <option value="f500e">Fiat 500e (42 kWh)</option>
+          </optgroup>
+          <optgroup label="Opel">
+            <option value="mokae">Opel Mokka-e (50 kWh)</option>
+          </optgroup>
+        </select>
+      </div>
+      <div id="carInfo" style="margin-top:10px;padding:10px 12px;background:rgba(108,71,255,0.06);border-radius:10px;border:1px solid var(--border);display:flex;gap:16px;flex-wrap:wrap;"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Votre trajet</div>
+      <div class="ac-wrap" id="ac-from-wrap">
+        <label>Départ</label>
+        <input type="text" id="from-input" placeholder="Boulogne-Billancourt, Paris…" autocomplete="off" />
+        <div class="ac-dropdown" id="from-dropdown"></div>
+      </div>
+      <div class="ac-wrap" id="ac-to-wrap">
+        <label>Destination</label>
+        <input type="text" id="to-input" placeholder="Lyon, Laval, Bordeaux…" autocomplete="off" />
+        <div class="ac-dropdown" id="to-dropdown"></div>
+      </div>
+      <div class="row-2" style="margin-top:4px;">
+        <div class="field">
+          <label>Batterie départ</label>
+          <div class="batt-wrap">
+            <input type="number" id="startBatt" value="90" min="10" max="100" style="padding-right:28px;" />
+            <span class="batt-suffix">%</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Style de conduite</label>
+          <select id="driveStyle">
+            <option value="eco">Éco (−10%)</option>
+            <option value="normal" selected>Normal</option>
+            <option value="sport">Sport (+15%)</option>
+          </select>
+        </div>
+      </div>
+      <div id="speedInfoBox" style="display:none;margin-top:8px;padding:9px 12px;background:rgba(108,71,255,0.06);border:1px solid var(--border);border-radius:10px;font-size:12px;color:var(--muted);"></div>
+      <div class="error-msg" id="errMsg"></div>
+      <button class="btn" id="planBtn" onclick="planTrip()" style="margin-top:12px;">Calculer l'itinéraire</button>
+    </div>
+
+    <div class="card" id="metricsCard" style="display:none;">
+      <div class="card-label">Résumé du trajet</div>
+      <div class="metrics">
+        <div class="metric"><div class="m-label">Distance</div><div class="m-val" id="mDist">—</div><div class="m-sub">kilomètres</div></div>
+        <div class="metric"><div class="m-label">Durée</div><div class="m-val" id="mDur">—</div><div class="m-sub">hors recharge</div></div>
+        <div class="metric"><div class="m-label">Conso</div><div class="m-val" id="mConso">—</div><div class="m-sub">kWh / 100 km</div></div>
+        <div class="metric"><div class="m-label">Sans arrêt</div><div class="m-val" id="mBatt">—</div><div class="m-sub">batterie arrivée</div></div>
+      </div>
+      <div class="batt-row">
+        <span style="font-size:14px;">⚡</span>
+        <div class="batt-track"><div class="batt-fill" id="battFill"></div></div>
+        <span class="batt-pct" id="battPct">—</span>
+      </div>
+    </div>
+
+    <div class="card" id="sliderCard" style="display:none;">
+      <div class="card-label">Confort d'arrivée</div>
+      <div class="slider-header">
+        <span class="slider-title">% batterie cible à l'arrivée</span>
+        <span class="slider-val" id="targetDisplay">20%</span>
+      </div>
+      <input type="range" id="targetSlider" min="5" max="50" value="20" step="1" oninput="onSlider(this)" style="--pct:33%;" />
+      <div><span class="risk-tag risk-ok" id="riskTag">Confort raisonnable</span></div>
+    </div>
+
+    <div class="card" id="stopsCard" style="display:none;">
+      <div class="card-label">Arrêts recommandés</div>
+      <div class="tabs">
+        <button class="tab active" onclick="setTab('all',this)">Tout</button>
+        <button class="tab" onclick="setTab('tesla',this)">Tesla</button>
+        <button class="tab" onclick="setTab('third',this)">Tiers</button>
+      </div>
+      <div class="loader" id="loader"><span class="spinner"></span>Recherche des bornes…</div>
+      <div class="stop-list" id="stopList"><div class="empty">Lancez le calcul pour voir les arrêts recommandés.</div></div>
+    </div>
+
+  </div>
+
+  <!-- MAP + TABLE -->
+  <div class="map-right">
+    <div class="map-placeholder" id="mapPlaceholder">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#6c47ff" stroke-width="1.2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+      Entrez un trajet pour afficher la carte
+    </div>
+    <div id="map" style="display:none; flex:1; min-height:420px;"></div>
+    <div class="map-legend" id="mapLegend" style="display:none;">
+      <div class="leg-item"><div class="leg-dot" style="background:#ff6b6b;"></div>Superchargeur Tesla</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#60a5fa;"></div>Chargeur rapide tiers</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#10b981;"></div>Départ / Arrivée</div>
+    </div>
+    <div class="charger-section" id="chargerSection" style="display:none;">
+      <div class="charger-header">
+        Bornes sur le trajet
+        <span class="charger-count" id="chargerCount">0</span>
+      </div>
+      <table class="charger-table">
+        <thead><tr>
+          <th>Nom</th><th>Réseau</th><th>Puissance</th><th>Prix / kWh</th><th>Prises</th>
+        </tr></thead>
+        <tbody id="chargerBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// Car data loaded dynamically via CARS object
+
+let S = { route: null, chargers: [], tab: 'all', map: null, markers: [] };
+
+// ── AUTOCOMPLETE ─────────────────────────────────────────────────────────────
+function setupAC(inputId, dropdownId, onSelect) {
+  const inp = document.getElementById(inputId);
+  const dd = document.getElementById(dropdownId);
+  let debounce, selected = null, hiIdx = -1;
+
+  inp.addEventListener('input', () => {
+    selected = null;
+    clearTimeout(debounce);
+    const q = inp.value.trim();
+    if (q.length < 3) { dd.style.display = 'none'; return; }
+    debounce = setTimeout(() => fetchSuggestions(q, dd, inp, onSelect, (s) => { selected = s; hiIdx = -1; }), 280);
+  });
+
+  inp.addEventListener('keydown', e => {
+    const items = dd.querySelectorAll('.ac-item');
+    if (!items.length) return;
+    if (e.key === 'ArrowDown') { hiIdx = Math.min(hiIdx+1, items.length-1); highlight(items, hiIdx); e.preventDefault(); }
+    else if (e.key === 'ArrowUp') { hiIdx = Math.max(hiIdx-1, 0); highlight(items, hiIdx); e.preventDefault(); }
+    else if (e.key === 'Enter' && hiIdx >= 0) { items[hiIdx].click(); e.preventDefault(); }
+    else if (e.key === 'Escape') { dd.style.display = 'none'; }
+  });
+
+  document.addEventListener('click', e => { if (!inp.contains(e.target) && !dd.contains(e.target)) dd.style.display = 'none'; });
+  return () => selected;
+}
+
+function highlight(items, idx) {
+  items.forEach((it, i) => it.classList.toggle('highlighted', i === idx));
+}
+
+async function fetchSuggestions(q, dd, inp, onSelect, setSelected) {
+  try {
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5&addressdetails=1&accept-language=fr`, { headers: {'User-Agent': 'TeslaRoutePlanner/3.0'} });
+    const d = await r.json();
+    if (!d.length) { dd.style.display = 'none'; return; }
+    dd.innerHTML = d.map((p, i) => {
+      const main = p.display_name.split(',')[0];
+      const rest = p.display_name.split(',').slice(1, 3).join(',');
+      return `<div class="ac-item" data-idx="${i}"><strong>${main}</strong>${rest ? ', <span style="color:var(--hint)">' + rest + '</span>' : ''}</div>`;
+    }).join('');
+    dd.style.display = 'block';
+    dd.querySelectorAll('.ac-item').forEach((el, i) => {
+      el.addEventListener('click', () => {
+        const place = { lat: +d[i].lat, lon: +d[i].lon, name: d[i].display_name.split(',')[0] };
+        inp.value = place.name;
+        dd.style.display = 'none';
+        setSelected(place);
+        onSelect(place);
+      });
+    });
+  } catch(e) { dd.style.display = 'none'; }
+}
+
+let fromPlace = null, toPlace = null;
+setupAC('from-input', 'from-dropdown', p => { fromPlace = p; });
+setupAC('to-input', 'to-dropdown', p => { toPlace = p; });
+
+// ── GEOCODE FALLBACK ──────────────────────────────────────────────────────────
+async function geocode(q) {
+  const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1&accept-language=fr`, { headers: {'User-Agent': 'TeslaRoutePlanner/3.0'} });
+  const d = await r.json();
+  if (!d.length) throw new Error(`Impossible de trouver : "${q}"`);
+  return { lat: +d[0].lat, lon: +d[0].lon, name: d[0].display_name.split(',')[0] };
+}
+
+// ── OSRM ─────────────────────────────────────────────────────────────────────
+async function getRoute(from, to) {
+  const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=full&geometries=geojson&steps=true&annotations=speed`);
+  const d = await r.json();
+  if (!d.routes?.length) throw new Error('Itinéraire introuvable.');
+  const route = d.routes[0];
+  // Analyse des segments pour vitesse légale moyenne pondérée
+  const speedAnalysis = analyzeSpeed(route);
+  return {
+    dist: Math.round(route.distance/1000),
+    dur: Math.round(route.duration/60),
+    coords: route.geometry.coordinates,
+    speedAnalysis
+  };
+}
+
+function analyzeSpeed(route) {
+  let totalDist = 0;
+  let motorwayDist = 0, trunkDist = 0, primaryDist = 0, otherDist = 0;
+
+  const legs = route.legs || [];
+  for (const leg of legs) {
+    for (const step of (leg.steps || [])) {
+      const d = step.distance || 0;
+      totalDist += d;
+      const ref = (step.ref || '').toLowerCase();
+      const name = (step.name || '').toLowerCase();
+      const roadClass = step.driving_side ? step.intersections?.[0]?.classes || [] : [];
+      // Detect road type from name/ref
+      if (/^a\d/.test(ref) || ref.includes('autoroute') || roadClass.includes('motorway')) {
+        motorwayDist += d;
+      } else if (/^n\d/.test(ref) || name.includes('nationale') || roadClass.includes('trunk')) {
+        trunkDist += d;
+      } else if (roadClass.includes('primary')) {
+        primaryDist += d;
+      } else {
+        // Estimate from OSRM speed
+        const osrmSpeed = d > 0 && step.duration > 0 ? (d / step.duration) * 3.6 : 50;
+        if (osrmSpeed >= 100) motorwayDist += d;
+        else if (osrmSpeed >= 80) trunkDist += d;
+        else otherDist += d;
+      }
+    }
+  }
+
+  if (totalDist === 0) return { avgSpeed: 110, breakdown: null };
+
+  const mPct = motorwayDist/totalDist;
+  const tPct = trunkDist/totalDist;
+  const oPct = (primaryDist+otherDist)/totalDist;
+  const avgLegal = Math.round(130*mPct + 110*tPct + 80*oPct);
+  const avgSpeed = Math.max(80, Math.min(130, avgLegal));
+
+  return {
+    avgSpeed,
+    motorwayPct: Math.round(mPct*100),
+    trunkPct: Math.round(tPct*100),
+    otherPct: Math.round(oPct*100),
+    breakdown: true
+  };
+}
+
+// ── OVERPASS ─────────────────────────────────────────────────────────────────
+async function fetchChargers(coords) {
+  const lats = coords.map(c => c[1]), lons = coords.map(c => c[0]);
+  const pad = 0.12;
+  const bbox = `${Math.min(...lats)-pad},${Math.min(...lons)-pad},${Math.max(...lats)+pad},${Math.max(...lons)+pad}`;
+  const query = `[out:json][timeout:30];\nnode["amenity"="charging_station"](${bbox});\nout body;`;
+  const endpoints = [
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter'
+  ];
+  for (const url of endpoints) {
+    try {
+      const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'data='+encodeURIComponent(query) });
+      if (!r.ok) continue;
+      const d = await r.json();
+      if (d.elements?.length > 0) { console.log('Overpass OK:', d.elements.length, 'éléments'); return d.elements; }
+    } catch(e) { console.warn('Overpass endpoint failed:', url, e.message); }
+  }
+  return [];
+}
+
+function parseCharger(node, routeCoords) {
+  const t = node.tags || {};
+  const name = t.name || t.operator || t.network || 'Borne de recharge';
+  const lat = node.lat, lon = node.lon;
+  const network = t.network || t.operator || 'Inconnu';
+  const isTesla = /tesla/i.test(network + name + (t.operator||''));
+  let maxKw = 0;
+  for (const tag of ['socket:type2_combo:output','socket:chademo:output','socket:tesla_supercharger:output','maxpower','capacity:electrical']) {
+    const v = parseFloat(t[tag]); if (!isNaN(v) && v > maxKw) maxKw = v;
+  }
+  if (maxKw === 0) maxKw = isTesla ? 150 : (t['socket:type2_combo'] ? 50 : 22);
+  if (maxKw < 50 && !isTesla) return null;
+  if (minDistToRoute(lat, lon, routeCoords) > 6) return null;
+  let numPoints = parseInt(t.capacity) || 0;
+  if (!numPoints) for (const s of ['type2_combo','chademo','tesla_supercharger','type2']) numPoints += parseInt(t['socket:'+s])||0;
+  if (!numPoints) numPoints = 1;
+  return { id: node.id, name, lat, lon, network, isTesla, maxKw: Math.round(maxKw), numPoints };
+}
+
+// ── GEOMETRY ─────────────────────────────────────────────────────────────────
+function minDistToRoute(lat, lon, coords) {
+  let min = Infinity;
+  for (let i = 0; i < coords.length-1; i++) {
+    const [lo1,la1]=coords[i], [lo2,la2]=coords[i+1];
+    const dx=lo2-lo1, dy=la2-la1, len2=dx*dx+dy*dy;
+    let t = len2>0 ? ((lon-lo1)*dx+(lat-la1)*dy)/len2 : 0;
+    t = Math.max(0,Math.min(1,t));
+    const dLat=(lat-(la1+t*dy))*111, dLon=(lon-(lo1+t*dx))*111*Math.cos(lat*Math.PI/180);
+    const d=Math.sqrt(dLat*dLat+dLon*dLon);
+    if (d<min) min=d;
+  }
+  return min;
+}
+
+function routeProgress(c, coords) {
+  let minD=Infinity, minI=0;
+  for (let i=0; i<coords.length; i++) {
+    const d=(c.lat-coords[i][1])**2+(c.lon-coords[i][0])**2;
+    if (d<minD) { minD=d; minI=i; }
+  }
+  return minI/coords.length;
+}
+
+// ── PLAN TRIP ─────────────────────────────────────────────────────────────────
+async function planTrip() {
+  const fromStr = document.getElementById('from-input').value.trim();
+  const toStr = document.getElementById('to-input').value.trim();
+  const errEl = document.getElementById('errMsg');
+  errEl.style.display = 'none';
+  if (!fromStr || !toStr) { showErr('Merci de renseigner départ et destination.'); return; }
+
+  const btn = document.getElementById('planBtn');
+  btn.disabled = true; btn.textContent = 'Calcul en cours…';
+  document.getElementById('loader').classList.add('active');
+  document.getElementById('stopsCard').style.display = 'block';
+  document.getElementById('stopList').innerHTML = '';
+
+  try {
+    const from = fromPlace || await geocode(fromStr);
+    const to = toPlace || await geocode(toStr);
+    const route = await getRoute(from, to);
+    const startBatt = Math.min(100, Math.max(10, +document.getElementById('startBatt').value));
+    const driveStyle = document.getElementById('driveStyle').value;
+    const driveMulti = driveStyle === 'eco' ? 0.90 : driveStyle === 'sport' ? 1.15 : 1.0;
+
+    // Auto speed from route analysis
+    const sa = route.speedAnalysis;
+    const autoSpeed = sa.avgSpeed;
+
+    // Interpolate consumption from car data
+    const consoBase = interpolateConso(currentCar.conso, autoSpeed);
+    const conso = parseFloat((consoBase * driveMulti).toFixed(2));
+
+    // Show speed info
+    const speedBox = document.getElementById('speedInfoBox');
+    speedBox.style.display = 'block';
+    speedBox.innerHTML = sa.breakdown
+      ? `Vitesse légale moy. détectée : <strong style="color:var(--accent)">${autoSpeed} km/h</strong> · 
+         <span title="Autoroute">🛣 ${sa.motorwayPct}%</span> · 
+         <span title="Voie rapide">🏎 ${sa.trunkPct}%</span> · 
+         <span title="Autre">🏘 ${sa.otherPct}%</span><br/>
+         Conso estimée : <strong style="color:var(--accent)">${conso.toFixed(1)} kWh/100 km</strong> (style : ${driveStyle})`
+      : `Vitesse estimée : <strong style="color:var(--accent)">${autoSpeed} km/h</strong> · Conso : <strong>${conso.toFixed(1)} kWh/100 km</strong>`;
+
+    const endPct = Math.round((((startBatt/100)*currentCar.capacity - (route.dist/100)*conso) / currentCar.capacity)*100);
+    S.route = { from, to, ...route, speed: autoSpeed, conso, startBatt, endPct };
+
+    renderMetrics(route.dist, route.dur, conso, endPct);
+    initMap(from, to, route.coords);
+
+    document.getElementById('loader').innerHTML = '<span class="spinner"></span>Recherche des bornes (OSM/Overpass)…';
+    const raw = await fetchChargers(route.coords);
+    S.chargers = raw.map(n => parseCharger(n, route.coords)).filter(Boolean);
+    S.chargers.sort((a,b) => routeProgress(a, route.coords) - routeProgress(b, route.coords));
+    console.log('Bornes filtrées:', S.chargers.length);
+
+    document.getElementById('loader').innerHTML = S.chargers.length > 0
+      ? `<span style="color:var(--green);">✓ ${S.chargers.length} bornes trouvées sur le trajet</span>`
+      : '<span style="color:var(--amber);">⚠ Aucune borne trouvée via Overpass</span>';
+
+    renderMapMarkers();
+    renderChargerTable();
+    renderStops();
+
+    document.getElementById('metricsCard').style.display = 'block';
+    document.getElementById('sliderCard').style.display = 'block';
+
+  } catch(e) { showErr(e.message); }
+
+  btn.disabled = false; btn.textContent = 'Calculer l\'itinéraire';
+}
+
+// ── METRICS ───────────────────────────────────────────────────────────────────
+function renderMetrics(dist, dur, conso, endPct) {
+  document.getElementById('mDist').textContent = dist + ' km';
+  const h=Math.floor(dur/60), m=dur%60;
+  document.getElementById('mDur').textContent = h>0 ? `${h}h${m<10?'0'+m:m}` : m+'min';
+  document.getElementById('mConso').textContent = conso.toFixed(1);
+  document.getElementById('mBatt').textContent = endPct + '%';
+  document.getElementById('battPct').textContent = Math.max(0,endPct) + '%';
+  const fill = document.getElementById('battFill');
+  const p = Math.max(0, Math.min(100, endPct));
+  fill.style.width = p + '%';
+  fill.style.background = p < 10 ? '#ef4444' : p < 20 ? '#f59e0b' : '#10b981';
+}
+
+// ── MAP ───────────────────────────────────────────────────────────────────────
+function initMap(from, to, coords) {
+  document.getElementById('mapPlaceholder').style.display = 'none';
+  const mapEl = document.getElementById('map');
+  mapEl.style.display = 'block';
+  document.getElementById('mapLegend').style.display = 'flex';
+  document.getElementById('chargerSection').style.display = 'block';
+
+  if (S.map) { S.map.remove(); S.markers = []; }
+  S.map = L.map('map');
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution:'© OpenStreetMap © CARTO', subdomains:'abcd', maxZoom:19
+  }).addTo(S.map);
+
+  const latLngs = coords.map(([lon,lat]) => [lat,lon]);
+  const poly = L.polyline(latLngs, { color:'#6c47ff', weight:3, opacity:0.8 }).addTo(S.map);
+  S.map.fitBounds(poly.getBounds(), { padding:[28,28] });
+
+  const mkOpt = (col) => L.divIcon({ className:'', html:`<div style="width:12px;height:12px;border-radius:50%;background:${col};border:2px solid rgba(255,255,255,0.3);box-shadow:0 0 10px ${col}88;"></div>`, iconSize:[12,12], iconAnchor:[6,6] });
+  L.marker([from.lat, from.lon], { icon: mkOpt('#10b981') }).addTo(S.map).bindPopup(`<div class="popup-name">${from.name}</div><div class="popup-detail">Point de départ</div>`);
+  L.marker([to.lat, to.lon], { icon: mkOpt('#10b981') }).addTo(S.map).bindPopup(`<div class="popup-name">${to.name}</div><div class="popup-detail">Destination</div>`);
+}
+
+function renderMapMarkers() {
+  S.markers.forEach(m => S.map && S.map.removeLayer(m));
+  S.markers = [];
+  S.chargers.forEach((c, i) => {
+    const col = c.isTesla ? '#ff6b6b' : '#60a5fa';
+    const sz = c.maxKw >= 150 ? 10 : 7;
+    const icon = L.divIcon({ className:'', html:`<div style="width:${sz*2}px;height:${sz*2}px;border-radius:50%;background:${col};border:1.5px solid rgba(255,255,255,0.25);box-shadow:0 0 8px ${col}66;"></div>`, iconSize:[sz*2,sz*2], iconAnchor:[sz,sz] });
+    const m = L.marker([c.lat, c.lon], { icon }).addTo(S.map);
+    m.bindPopup(`<div class="popup-name">${c.name}</div><div class="popup-detail">${c.network}<br/><span class="popup-kw">${c.maxKw} kW</span> · ${c.numPoints} prise(s)</div>`);
+    S.markers.push(m);
+  });
+}
+
+// ── TABLE ─────────────────────────────────────────────────────────────────────
+function renderChargerTable() {
+  const tbody = document.getElementById('chargerBody');
+  document.getElementById('chargerCount').textContent = S.chargers.length;
+  if (!S.chargers.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:1.5rem;color:var(--hint);">Aucune borne trouvée sur ce trajet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = S.chargers.map((c,i) => {
+    const nc = c.isTesla ? 'nb-tesla' : /ionity/i.test(c.network) ? 'nb-ionity' : /fastned/i.test(c.network) ? 'nb-fastned' : /total/i.test(c.network) ? 'nb-total' : 'nb-default';
+    const pw = Math.min(100, Math.round(c.maxKw/350*100));
+    return `<tr onclick="focusCharger(${i})">
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);" title="${c.name}">${c.name}</td>
+      <td><span class="net-badge ${nc}">${c.network.split(' ')[0]}</span></td>
+      <td style="white-space:nowrap;color:var(--text);">${c.maxKw} kW<div class="pw-bar-wrap"><div class="pw-bar" style="width:${pw}%;"></div></div></td>
+      <td><span class="price-na">n/d</span></td>
+      <td style="color:var(--text);">${c.numPoints}</td>
+    </tr>`;
+  }).join('');
+}
+
+function focusCharger(i) {
+  const c = S.chargers[i];
+  if (c && S.map) { S.map.setView([c.lat, c.lon], 14); S.markers[i]?.openPopup(); }
+}
+
+// ── STOPS ─────────────────────────────────────────────────────────────────────
+function onSlider(el) {
+  const v = el.value;
+  const pct = ((v-5)/(50-5)*100).toFixed(1);
+  el.style.setProperty('--pct', pct+'%');
+  document.getElementById('targetDisplay').textContent = v + '%';
+  const tag = document.getElementById('riskTag');
+  if (v <= 10) { tag.className='risk-tag risk-danger'; tag.textContent='Mode aventurier 🎲'; }
+  else if (v <= 20) { tag.className='risk-tag risk-warn'; tag.textContent='Marge minimale'; }
+  else if (v <= 35) { tag.className='risk-tag risk-ok'; tag.textContent='Trajet serein'; }
+  else { tag.className='risk-tag risk-safe'; tag.textContent='Mode sécurisé 🛡️'; }
+  renderStops();
+}
+
+function setTab(tab, el) {
+  S.tab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderStops();
+}
+
+function renderStops() {
+  if (!S.route) return;
+  const { dist, conso, startBatt, from, to } = S.route;
+  const target = +document.getElementById('targetSlider').value;
+  const startKwh = (startBatt/100)*currentCar.capacity;
+  const targetKwh = (target/100)*currentCar.capacity;
+  const needsStop = startKwh - (dist/100)*conso < targetKwh;
+
+  const stops = [];
+  if (needsStop && S.chargers.length) {
+    let cursor = startKwh, prevKm = 0;
+    for (const c of S.chargers) {
+      const prog = routeProgress(c, S.route.coords);
+      const km = Math.round(prog * dist);
+      if (km <= prevKm) continue;
+      const kwhToHere = ((km-prevKm)/100)*conso;
+      if (cursor - kwhToHere < 0.05*currentCar.capacity) continue;
+      cursor -= kwhToHere;
+      const battHere = Math.round((cursor/currentCar.capacity)*100);
+      const kwhLeft = ((dist-km)/100)*conso;
+      if (cursor - kwhLeft < targetKwh) {
+        const needed = kwhLeft + targetKwh - cursor;
+        const chargeKwh = Math.min(needed + 0.05*currentCar.capacity, currentCar.capacity*0.85-cursor);
+        const chargePct = Math.round((chargeKwh/currentCar.capacity)*100);
+        const chargeMin = Math.round((chargeKwh/(Math.min(c.maxKw,150)*0.75))*60);
+        stops.push({ ...c, km, battOnArrival: battHere, chargePct, chargeMin });
+        cursor += chargeKwh;
+        prevKm = km;
+      }
+      if (cursor - ((dist-km)/100)*conso >= targetKwh) break;
+    }
+  }
+
+  let finalKwh = startKwh; let prevKm2 = 0;
+  for (const s of stops) { finalKwh -= ((s.km-prevKm2)/100)*conso; finalKwh += (s.chargePct/100)*currentCar.capacity; prevKm2=s.km; }
+  finalKwh -= ((dist-prevKm2)/100)*conso;
+  const finalPct = Math.round((finalKwh/currentCar.capacity)*100);
+
+  const items = [
+    { kind:'origin', name: from.name, batt: startBatt },
+    ...stops.map(s => ({ kind: s.isTesla ? 'tesla' : 'third', ...s })),
+    { kind:'arrival', name: to.name, batt: finalPct, km: dist }
+  ];
+
+  const filtered = items.filter(it => {
+    if (S.tab === 'all') return true;
+    if (S.tab === 'tesla') return it.kind==='tesla'||it.kind==='origin'||it.kind==='arrival';
+    if (S.tab === 'third') return it.kind==='third'||it.kind==='origin'||it.kind==='arrival';
+  });
+
+  let html = '';
+  filtered.forEach((it, i) => {
+    if (i > 0) html += '<div class="stop-connector"></div>';
+    if (it.kind === 'origin') {
+      html += `<div class="stop-item"><div class="stop-dot dot-origin">A</div><div class="stop-body"><div class="stop-name">${it.name}</div><div class="stop-detail">Départ à ${it.batt}% de batterie</div></div><div class="stop-right"><span class="batt-badge bb-ok">${it.batt}%</span></div></div>`;
+    } else if (it.kind === 'arrival') {
+      const bc = it.batt>=25?'bb-ok':it.batt>=10?'bb-warn':'bb-danger';
+      html += `<div class="stop-item"><div class="stop-dot dot-arrival">B</div><div class="stop-body"><div class="stop-name">${it.name}</div><div class="stop-detail">${it.km} km au total</div></div><div class="stop-right"><span class="batt-badge ${bc}">${Math.max(0,it.batt)}%</span></div></div>`;
+    } else if (it.kind === 'tesla') {
+      html += `<div class="stop-item"><div class="stop-dot dot-tesla">T</div><div class="stop-body"><div class="stop-name">${it.name}</div><div class="stop-detail">à ${it.km} km · ${it.maxKw} kW · arrivée ~${it.battOnArrival}%</div><div class="stop-charge">+${it.chargePct}% · ~${it.chargeMin} min</div></div><div class="stop-right"><span class="batt-badge bb-warn">${it.battOnArrival}%</span><div class="stop-network">Superchargeur</div></div></div>`;
+    } else {
+      html += `<div class="stop-item"><div class="stop-dot dot-third">${it.network?it.network[0]:'C'}</div><div class="stop-body"><div class="stop-name">${it.name}</div><div class="stop-detail">à ${it.km} km · ${it.maxKw} kW · arrivée ~${it.battOnArrival}%</div><div class="stop-charge">+${it.chargePct}% · ~${it.chargeMin} min</div></div><div class="stop-right"><span class="batt-badge bb-warn">${it.battOnArrival}%</span><div class="stop-network">${it.network||''}</div></div></div>`;
+    }
+  });
+
+  if (stops.length===0 && !needsStop) {
+    html += `<div style="margin-top:8px;padding:12px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:10px;font-size:12px;color:var(--green);">✅ Trajet faisable sans arrêt — arrivée estimée à ${finalPct}%.</div>`;
+  } else if (stops.length===0 && needsStop) {
+    html += `<div style="margin-top:8px;padding:12px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2);border-radius:10px;font-size:12px;color:var(--amber);">⚠️ Recharge nécessaire mais aucune borne adaptée trouvée. Essayez l'onglet "Tout".</div>`;
+  }
+
+  document.getElementById('stopList').innerHTML = html;
+}
+
+function interpolateConso(consoMap, speed) {
+  // Linear interpolation between known speed points
+  const speeds = [110, 130, 150];
+  if (speed <= 110) return consoMap[110];
+  if (speed >= 150) return consoMap[150];
+  if (speed <= 130) {
+    const t = (speed - 110) / 20;
+    return consoMap[110] + t * (consoMap[130] - consoMap[110]);
+  } else {
+    const t = (speed - 130) / 20;
+    return consoMap[130] + t * (consoMap[150] - consoMap[130]);
+  }
+}
+
+function showErr(msg) { const e=document.getElementById('errMsg'); e.textContent=msg; e.style.display='block'; }
+
+// ── CAR DATABASE ──────────────────────────────────────────────────────────────
+const CARS = {
+  my_prop: { name:'Model Y Propulsion', brand:'Tesla', capacity:57.5, wltp:430, conso:{110:14.2,130:17.5,150:21.5} },
+  my_lr:   { name:'Model Y Gr. Autonomie', brand:'Tesla', capacity:82, wltp:600, conso:{110:15.5,130:19.0,150:23.5} },
+  m3_prop: { name:'Model 3 Propulsion', brand:'Tesla', capacity:60, wltp:491, conso:{110:13.8,130:17.0,150:21.0} },
+  m3_lr:   { name:'Model 3 Gr. Autonomie', brand:'Tesla', capacity:82, wltp:629, conso:{110:14.5,130:18.0,150:22.0} },
+  ms:      { name:'Model S', brand:'Tesla', capacity:100, wltp:652, conso:{110:16.0,130:19.5,150:24.0} },
+  mx:      { name:'Model X', brand:'Tesla', capacity:100, wltp:576, conso:{110:18.0,130:22.0,150:27.0} },
+  id3:     { name:'ID.3 Pro', brand:'Volkswagen', capacity:77, wltp:560, conso:{110:15.5,130:19.5,150:24.0} },
+  id4:     { name:'ID.4 Pro', brand:'Volkswagen', capacity:77, wltp:529, conso:{110:16.0,130:20.0,150:25.0} },
+  r5:      { name:'Renault 5 E-Tech', brand:'Renault', capacity:52, wltp:410, conso:{110:14.0,130:17.5,150:22.0} },
+  zoe:     { name:'Zoé R135', brand:'Renault', capacity:54.7, wltp:395, conso:{110:14.5,130:18.0,150:22.5} },
+  e208:    { name:'e-208', brand:'Peugeot', capacity:51, wltp:400, conso:{110:14.0,130:17.5,150:22.0} },
+  ioniq6:  { name:'Ioniq 6', brand:'Hyundai', capacity:77.4, wltp:614, conso:{110:14.0,130:17.5,150:21.5} },
+  ev6:     { name:'EV6 GT-Line', brand:'Kia', capacity:77.4, wltp:528, conso:{110:15.5,130:19.0,150:23.5} },
+  bmwi4:   { name:'i4 eDrive40', brand:'BMW', capacity:83.9, wltp:590, conso:{110:15.5,130:19.5,150:24.0} },
+  ex30:    { name:'EX30', brand:'Volvo', capacity:69, wltp:480, conso:{110:15.5,130:19.5,150:24.0} },
+  byd_atto3: { name:'Atto 3', brand:'BYD', capacity:60.5, wltp:420, conso:{110:15.5,130:19.5,150:24.5} },
+  byd_seal:  { name:'Seal', brand:'BYD', capacity:82.5, wltp:570, conso:{110:15.5,130:19.5,150:24.0} },
+  byd_dolphin:{ name:'Dolphin', brand:'BYD', capacity:60.4, wltp:427, conso:{110:14.5,130:18.5,150:23.5} },
+  byd_han:   { name:'Han', brand:'BYD', capacity:85.4, wltp:521, conso:{110:16.5,130:20.5,150:25.5} },
+  byd_tang:  { name:'Tang', brand:'BYD', capacity:108.8, wltp:400, conso:{110:22.0,130:27.0,150:33.0} },
+  etron_gt:  { name:'e-tron GT', brand:'Audi', capacity:93.4, wltp:487, conso:{110:18.0,130:22.5,150:28.0} },
+  q4etron:   { name:'Q4 e-tron', brand:'Audi', capacity:82, wltp:520, conso:{110:16.0,130:20.0,150:25.0} },
+  eqb:       { name:'EQB 300', brand:'Mercedes', capacity:70.5, wltp:419, conso:{110:17.0,130:21.5,150:27.0} },
+  eqa:       { name:'EQA 250', brand:'Mercedes', capacity:70.5, wltp:426, conso:{110:16.5,130:21.0,150:26.5} },
+  ec4:       { name:'ë-C4', brand:'Citroën', capacity:54, wltp:358, conso:{110:16.0,130:20.0,150:25.0} },
+  ds3etense: { name:'DS 3 E-Tense', brand:'DS', capacity:54, wltp:395, conso:{110:15.5,130:19.5,150:24.5} },
+  f500e:     { name:'500e', brand:'Fiat', capacity:42, wltp:320, conso:{110:14.0,130:18.0,150:23.0} },
+  mokae:     { name:'Mokka-e', brand:'Opel', capacity:50, wltp:338, conso:{110:15.5,130:19.5,150:24.5} },
+};
+
+let currentCar = CARS['my_prop'];
+
+function onCarChange() {
+  const key = document.getElementById('carSelect').value;
+  currentCar = CARS[key];
+  const info = document.getElementById('carInfo');
+  info.innerHTML = `
+    <div style="flex:1;min-width:80px;"><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">Batterie</div><div style="font-size:16px;font-weight:700;font-family:'DM Mono';color:var(--accent);">${currentCar.capacity} kWh</div></div>
+    <div style="flex:1;min-width:80px;"><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">WLTP</div><div style="font-size:16px;font-weight:700;font-family:'DM Mono';color:var(--text);">${currentCar.wltp} km</div></div>
+    <div style="flex:1;min-width:80px;"><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">Marque</div><div style="font-size:16px;font-weight:700;color:var(--text);">${currentCar.brand}</div></div>
+  `;
+  document.getElementById('header-sub-text').textContent = currentCar.brand + ' ' + currentCar.name + ' · ' + currentCar.capacity + ' kWh';
+}
+
+
+document.addEventListener("DOMContentLoaded", () => onCarChange());
+</script>
+
+</body>
+</html>
